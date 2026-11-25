@@ -71,7 +71,7 @@ export function SiteHeader() {
 
         <div className="ml-auto flex items-center gap-2 xl:ml-4">
           <Link
-            href="/tableau-de-bord"
+            href="/auth/sign-in"
             aria-label="Espace membre"
             title="Espace membre"
             className="hidden rounded-full p-2 text-muted transition hover:bg-surface hover:text-brand sm:inline-flex"
@@ -138,7 +138,7 @@ export function SiteHeader() {
               </div>
             );
           })}
-          <Link href="/tableau-de-bord" className="mt-2 flex items-center gap-2 rounded-lg border-t border-line px-3 py-3 text-muted">
+          <Link href="/auth/sign-in" className="mt-2 flex items-center gap-2 rounded-lg border-t border-line px-3 py-3 text-muted">
             <LogIn className="size-4" /> Espace membre
           </Link>
         </nav>

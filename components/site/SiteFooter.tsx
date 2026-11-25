@@ -33,7 +33,7 @@ const columns = [
       { href: "/faq", label: "Questions fréquentes" },
       { href: "/confidentialite", label: "Confidentialité" },
       { href: "/mentions-legales", label: "Mentions légales" },
-      { href: "/tableau-de-bord", label: "Espace membre" },
+      { href: "/auth/sign-in", label: "Espace membre" },
     ],
   },
 ];

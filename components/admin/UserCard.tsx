@@ -13,7 +13,7 @@ function initials(name: string) {
 
 /** Utilisateur connecté (session Neon Auth). Sans Neon Auth : carte de démonstration. */
 export async function UserCard() {
-  let name = "Marie Dupont";
+  let name = "Compte de démonstration";
   let detail = "Démonstration";
   if (isAuthConfigured) {
     await connection(); // lecture de session : rendu à la requête uniquement

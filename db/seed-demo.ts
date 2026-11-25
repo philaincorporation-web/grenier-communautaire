@@ -28,7 +28,6 @@ export async function seedDemo(tx: Db): Promise<boolean> {
   const organizationId = org.id;
 
   const people = [
-    { email: "marie.dupont@example.org", fullName: "Marie Dupont", role: "admin" as const, joinedAt: daysAgo(60) },
     { email: "awa.diallo@example.org", fullName: "Awa Diallo", role: "manager" as const, joinedAt: daysAgo(30) },
     { email: "koffi.mensah@example.org", fullName: "Koffi Mensah", role: "member" as const, joinedAt: hoursAgo(4) },
   ];
@@ -46,13 +45,14 @@ export async function seedDemo(tx: Db): Promise<boolean> {
     .insert(s.memberships)
     .values(people.map((p) => ({ organizationId, userId: userId(p.email), role: p.role, joinedAt: p.joinedAt })))
     .returning({ id: s.memberships.id, userId: s.memberships.userId });
-  const admin = memberRows.find((m) => m.userId === userId(people[0].email))!.id;
+  // Auteur des opérations de démonstration : le premier membre de la liste.
+  const actor = memberRows.find((m) => m.userId === userId(people[0].email))!.id;
 
   // --- Dépôts, catégories, produits ---------------------------------------------------
   const [principal, nord] = await tx
     .insert(s.warehouses)
     .values([
-      { organizationId, name: "Dépôt principal", code: "DEP-01", managerMembershipId: admin },
+      { organizationId, name: "Dépôt principal", code: "DEP-01", managerMembershipId: actor },
       { organizationId, name: "Relais Nord", code: "REL-N" },
       { organizationId, name: "Relais Sud", code: "REL-S" },
     ])
@@ -111,7 +111,7 @@ export async function seedDemo(tx: Db): Promise<boolean> {
         reference: `DON-${pad(i + 1)}`,
         receivedOn: isoDate(d.at),
         status: "received",
-        receivedByMembershipId: admin,
+        receivedByMembershipId: actor,
         createdAt: d.at,
       })
       .returning({ id: s.donations.id });
@@ -127,7 +127,7 @@ export async function seedDemo(tx: Db): Promise<boolean> {
         reference: nextMovementRef(),
         destinationWarehouseId: principal.id,
         donationId: donation.id,
-        performedByMembershipId: admin,
+        performedByMembershipId: actor,
         occurredAt: d.at,
       })
       .returning({ id: s.stockMovements.id });
@@ -144,7 +144,7 @@ export async function seedDemo(tx: Db): Promise<boolean> {
       reference: nextMovementRef(),
       sourceWarehouseId: principal.id,
       destinationWarehouseId: nord.id,
-      performedByMembershipId: admin,
+      performedByMembershipId: actor,
       occurredAt: daysAgo(8),
     })
     .returning({ id: s.stockMovements.id });
@@ -188,7 +188,7 @@ export async function seedDemo(tx: Db): Promise<boolean> {
         reference: `DEM-${pad(i + 1)}`,
         status: r.status,
         requestedOn: isoDate(r.requestedOn),
-        reviewedByMembershipId: r.reviewedAt ? admin : null,
+        reviewedByMembershipId: r.reviewedAt ? actor : null,
         reviewedAt: r.reviewedAt,
       })
       .returning({ id: s.aidRequests.id });
@@ -215,7 +215,7 @@ export async function seedDemo(tx: Db): Promise<boolean> {
         reference: `DIS-${pad(i + 1)}`,
         status: "completed",
         distributedOn: isoDate(at),
-        distributedByMembershipId: admin,
+        distributedByMembershipId: actor,
         createdAt: at,
       })
       .returning({ id: s.distributions.id });
@@ -230,7 +230,7 @@ export async function seedDemo(tx: Db): Promise<boolean> {
         status: "posted",
         reference: nextMovementRef(),
         sourceWarehouseId: principal.id,
-        performedByMembershipId: admin,
+        performedByMembershipId: actor,
         occurredAt: at,
         note: `Distribution DIS-${pad(i + 1)}`,
       })

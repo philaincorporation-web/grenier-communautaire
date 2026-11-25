@@ -13,9 +13,40 @@ export type ActiveMembership = {
   userId: string;
   userName: string;
   email: string;
+  /** Super administrateur de la plateforme (voir requireSuperAdmin). */
+  isSuperAdmin: boolean;
 };
 
 export class AuthError extends Error {}
+
+/** Session Neon Auth avec e-mail vérifié ; sinon redirection vers la connexion. */
+async function requireVerifiedSession() {
+  await connection(); // dépend de la requête : jamais prérendu
+  const { data: session } = await getAuth().getSession();
+  const authUser = session?.user;
+  if (!authUser) redirect("/auth/sign-in");
+  if (!authUser.emailVerified) {
+    redirect(`/auth/sign-in?verify=${encodeURIComponent(authUser.email)}`);
+  }
+  return authUser;
+}
+
+export type SuperAdmin = { userId: string; userName: string; email: string };
+
+/**
+ * Super administrateur de la plateforme, ou null. Le statut est lu en base à chaque appel
+ * (users.is_super_admin) pour l'utilisateur de la session — jamais depuis le navigateur.
+ * Ne redirige pas : à utiliser pour décider d'afficher un écran ou d'autoriser une action.
+ */
+export async function getSuperAdmin(): Promise<SuperAdmin | null> {
+  const authUser = await requireVerifiedSession();
+  const [u] = await getDb()
+    .select({ userId: users.id, userName: users.fullName, email: users.email })
+    .from(users)
+    .where(and(eq(users.email, authUser.email.toLowerCase()), eq(users.isActive, true), eq(users.isSuperAdmin, true)))
+    .limit(1);
+  return u ?? null;
+}
 
 /**
  * Résout l'organisation active côté serveur à partir de la session Neon Auth et vérifie
@@ -25,13 +56,7 @@ export class AuthError extends Error {}
  * que pour un e-mail vérifié (la vérification à l'inscription est exigée sur la branche).
  */
 export async function requireActiveMembership(): Promise<ActiveMembership> {
-  await connection(); // dépend de la requête : jamais prérendu
-  const { data: session } = await getAuth().getSession();
-  const authUser = session?.user;
-  if (!authUser) redirect("/auth/sign-in");
-  if (!authUser.emailVerified) {
-    redirect(`/auth/sign-in?verify=${encodeURIComponent(authUser.email)}`);
-  }
+  const authUser = await requireVerifiedSession();
 
   const [row] = await getDb()
     .select({
@@ -42,6 +67,7 @@ export async function requireActiveMembership(): Promise<ActiveMembership> {
       userId: users.id,
       userName: users.fullName,
       email: users.email,
+      isSuperAdmin: users.isSuperAdmin,
     })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))

@@ -42,6 +42,9 @@ export const users = pgTable("users", {
   fullName: varchar("full_name", { length: 180 }).notNull(),
   phone: varchar("phone", { length: 40 }),
   isActive: boolean("is_active").notNull().default(true),
+  /** Super administrateur de la plateforme : crée les organisations et gère leurs membres.
+   *  Indépendant des rôles d'organisation ; attribué uniquement par script (npm run db:super-admin). */
+  isSuperAdmin: boolean("is_super_admin").notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
