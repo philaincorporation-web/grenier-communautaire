@@ -94,7 +94,7 @@ export function SiteFooter() {
         </div>
         <div className="border-t border-white/10">
           <p className="mx-auto max-w-7xl px-4 py-5 text-center text-xs sm:px-6">
-            © 2026 Grenier Communautaire — Collecter, trier, redistribuer.
+            © 2026 Grenier Communautaire-Tous droits réservés. Conçu, développé et maintenu par DIGIeWOMEN SCHOOL.
           </p>
         </div>
       </div>
