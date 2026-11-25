@@ -75,7 +75,6 @@ export const adminSections = {
   dons: { title: "Dons", subtitle: "Suivi des dons reçus et de leur réception" },
   beneficiaires: { title: "Bénéficiaires", subtitle: "Personnes et familles accompagnées" },
   demandes: { title: "Demandes d'aide", subtitle: "Instruction et approbation des demandes" },
-  distributions: { title: "Distributions", subtitle: "Préparation et suivi des distributions" },
   relais: { title: "Relais", subtitle: "Relais des Hommes de Bien et bénévoles" },
   rapports: { title: "Rapports", subtitle: "Indicateurs et impact communautaire" },
   parametres: { title: "Paramètres", subtitle: "Organisation, dépôts, rôles et membres" },

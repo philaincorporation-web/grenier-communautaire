@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import {
   BarChart3,
   Boxes,
@@ -32,12 +32,32 @@ const nav = [
   { href: "/tableau-de-bord/parametres", label: "Paramètres", icon: Settings },
 ];
 
-function NavLinks({ onNavigate, badges }: { onNavigate?: () => void; badges?: Record<string, React.ReactNode> }) {
-  const pathname = usePathname();
+type NavProps = { onNavigate?: () => void; badges?: Record<string, React.ReactNode> };
+
+/**
+ * Liens du menu. Lire l'adresse (`usePathname`) doit se faire dans une zone <Suspense> : sur une page
+ * dont l'identifiant n'est pas connu à l'avance (ex. /distributions/[id]), Next.js ne peut pas la
+ * résoudre au moment du prérendu (docs : usePathname › Cache Components). Le repli affiche les mêmes
+ * liens, sans surbrillance, le temps que l'adresse soit connue.
+ */
+function NavLinks(props: NavProps) {
+  return (
+    <Suspense fallback={<NavList pathname={null} {...props} />}>
+      <ActiveNavList {...props} />
+    </Suspense>
+  );
+}
+
+function ActiveNavList(props: NavProps) {
+  return <NavList pathname={usePathname()} {...props} />;
+}
+
+function NavList({ pathname, onNavigate, badges }: NavProps & { pathname: string | null }) {
   return (
     <ul className="space-y-1">
       {nav.map(({ href, label, icon: Icon }) => {
-        const active = href === "/tableau-de-bord" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+        const active =
+          pathname !== null && (href === "/tableau-de-bord" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
         return (
           <li key={href}>
             <Link
