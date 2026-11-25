@@ -3,41 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { LoaderCircle } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
+import { authCall, errorMessage, inputClass as input, safeRedirect, SubmitButton } from "./shared";
 
 type Mode = "sign-in" | "sign-up";
-type AuthErr = { code?: string; message?: string; status?: number } | null | undefined;
-
-/** N'accepte qu'un chemin interne (pas de //hôte ni d'URL absolue). */
-function safeRedirect(value: string | null) {
-  return value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\")
-    ? value
-    : "/tableau-de-bord";
-}
-
-function errorMessage(error: AuthErr) {
-  switch (error?.code) {
-    case "INVALID_EMAIL_OR_PASSWORD":
-      return "E-mail ou mot de passe incorrect.";
-    case "USER_ALREADY_EXISTS":
-    case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
-      return "Un compte existe déjà avec cet e-mail. Connectez-vous.";
-    case "PASSWORD_TOO_SHORT":
-      return "Le mot de passe est trop court (8 caractères minimum).";
-    case "INVALID_OTP":
-      return "Code invalide. Vérifiez le code reçu par e-mail.";
-    case "OTP_EXPIRED":
-      return "Ce code a expiré. Demandez-en un nouveau.";
-    case "TOO_MANY_ATTEMPTS":
-      return "Trop de tentatives. Demandez un nouveau code.";
-    default:
-      return error?.message || "Une erreur est survenue. Réessayez.";
-  }
-}
-
-const input =
-  "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -49,7 +18,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [email, setEmail] = useState(pendingVerification ?? "");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(
-    pendingVerification ? "Votre e-mail n'est pas encore vérifié. Saisissez le code reçu ou demandez-en un nouveau." : null,
+    pendingVerification
+      ? "Votre e-mail n'est pas encore vérifié. Saisissez le code reçu ou demandez-en un nouveau."
+      : params.get("reset") === "1"
+        ? "Votre mot de passe a été modifié. Connectez-vous avec le nouveau."
+        : null,
   );
   const [busy, setBusy] = useState(false);
 
@@ -71,7 +44,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   };
 
   async function sendCode() {
-    const { error } = await authClient.emailOtp.sendVerificationOtp({ email, type: "email-verification" });
+    const { error } = await authCall(authClient.emailOtp.sendVerificationOtp({ email, type: "email-verification" }));
     if (error) return setError(errorMessage(error));
     setInfo(`Un code de vérification a été envoyé à ${email}.`);
   }
@@ -85,16 +58,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setEmail(values.email);
     run(async () => {
       if (mode === "sign-up") {
-        const { error } = await authClient.signUp.email(values);
+        const { error } = await authCall(authClient.signUp.email(values));
         if (error) return setError(errorMessage(error));
         setStep("code");
         setInfo(`Un code de vérification a été envoyé à ${values.email}.`);
         return;
       }
-      const { error } = await authClient.signIn.email({ email: values.email, password: values.password });
+      const { error } = await authCall(authClient.signIn.email({ email: values.email, password: values.password }));
       if (error?.code === "EMAIL_NOT_VERIFIED" || error?.status === 403) {
         setStep("code");
-        const sent = await authClient.emailOtp.sendVerificationOtp({ email: values.email, type: "email-verification" });
+        const sent = await authCall(authClient.emailOtp.sendVerificationOtp({ email: values.email, type: "email-verification" }));
         setInfo(
           sent.error
             ? "Votre e-mail n'est pas vérifié. Demandez un code ci-dessous."
@@ -110,7 +83,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   function onCode(form: FormData) {
     const otp = String(form.get("otp")).trim();
     run(async () => {
-      const { error } = await authClient.emailOtp.verifyEmail({ email, otp });
+      const { error } = await authCall(authClient.emailOtp.verifyEmail({ email, otp }));
       if (error) return setError(errorMessage(error));
       // La branche connecte automatiquement après vérification ; sinon on renvoie vers la connexion.
       const { data } = await authClient.getSession();
@@ -158,6 +131,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
               className={`${input} mt-1`}
             />
           </label>
+          {mode === "sign-in" && (
+            <p className="-mt-2 text-right text-sm">
+              <Link
+                href={`/auth/forgot-password?redirectTo=${encodeURIComponent(redirectTo)}`}
+                className="font-semibold text-brand hover:underline"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </p>
+          )}
           <SubmitButton busy={busy}>{mode === "sign-in" ? "Se connecter" : "Créer mon compte"}</SubmitButton>
         </form>
       ) : (
@@ -198,18 +181,5 @@ export function AuthForm({ mode }: { mode: Mode }) {
         )}
       </p>
     </div>
-  );
-}
-
-function SubmitButton({ busy, children }: { busy: boolean; children: React.ReactNode }) {
-  return (
-    <button
-      type="submit"
-      disabled={busy}
-      className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
-    >
-      {busy && <LoaderCircle className="size-4 animate-spin" />}
-      {children}
-    </button>
   );
 }
