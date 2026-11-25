@@ -70,14 +70,3 @@ export const stockItems: StockItem[] = [
   { id: "7", name: "Couvertures", category: "Literie", quantity: 64, unit: "pièces", status: "Stock faible" },
   { id: "8", name: "Cahiers", category: "Éducation", quantity: 310, unit: "pièces", status: "Disponible" },
 ];
-
-export const adminSections = {
-  dons: { title: "Dons", subtitle: "Suivi des dons reçus et de leur réception" },
-  beneficiaires: { title: "Bénéficiaires", subtitle: "Personnes et familles accompagnées" },
-  demandes: { title: "Demandes d'aide", subtitle: "Instruction et approbation des demandes" },
-  relais: { title: "Relais", subtitle: "Relais des Hommes de Bien et bénévoles" },
-  rapports: { title: "Rapports", subtitle: "Indicateurs et impact communautaire" },
-  parametres: { title: "Paramètres", subtitle: "Organisation, dépôts, rôles et membres" },
-} as const;
-
-export type AdminSection = keyof typeof adminSections;

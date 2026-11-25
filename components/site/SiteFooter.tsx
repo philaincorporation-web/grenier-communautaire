@@ -14,6 +14,7 @@ const columns = [
       { href: "/nos-actions", label: "Nos actions" },
       { href: "/evenements", label: "Événements" },
       { href: "/actualites", label: "Actualités" },
+      { href: "/inspiration", label: "Inspiration" },
       { href: "/contact", label: "Contact" },
     ],
   },

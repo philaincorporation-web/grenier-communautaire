@@ -14,16 +14,35 @@ const label = "mb-1.5 block text-sm font-semibold";
 
 
 /** Formulaire « Nouvelle distribution » : enregistre un BROUILLON (le stock ne bouge qu'à la validation). */
-export function DistributionForm({ options, today }: { options: FormOptions; today: string }) {
+export function DistributionForm({
+  options,
+  today,
+  initialBeneficiaryId,
+  initialAidRequestId,
+}: {
+  options: FormOptions;
+  today: string;
+  initialBeneficiaryId?: string;
+  initialAidRequestId?: string;
+}) {
   const [pending, startTransition] = useTransition();
-  const [aidRequestId, setAidRequestId] = useState("");
-  const [beneficiaryId, setBeneficiaryId] = useState("");
+  // Présélection depuis une demande approuvée (?demande=…) : bénéficiaire et articles pré-remplis.
+  const initialRequest = initialAidRequestId ? options.aidRequests.find((r) => r.id === initialAidRequestId) : undefined;
+  const [aidRequestId, setAidRequestId] = useState(initialRequest?.id ?? "");
+  // Présélection depuis la fiche d'un bénéficiaire (?beneficiaire=…), seulement s'il fait partie des choix.
+  const [beneficiaryId, setBeneficiaryId] = useState(
+    initialRequest?.beneficiaryId ?? (initialBeneficiaryId && options.beneficiaries.some((b) => b.id === initialBeneficiaryId) ? initialBeneficiaryId : ""),
+  );
   const [warehouseId, setWarehouseId] = useState(options.warehouses[0]?.id ?? "");
   const [distributedOn, setDistributedOn] = useState(today);
   const [note, setNote] = useState("");
   // Clés de lignes stables : 0 pour la première (identique serveur / navigateur), puis compteur local.
-  const [lines, setLines] = useState<Line[]>([{ key: 0, productId: "", quantity: "" }]);
-  const keyRef = useRef(1);
+  const [lines, setLines] = useState<Line[]>(
+    initialRequest?.items.length
+      ? initialRequest.items.map((i, k) => ({ key: k, productId: i.productId, quantity: String(i.quantity) }))
+      : [{ key: 0, productId: "", quantity: "" }],
+  );
+  const keyRef = useRef(Math.max(1, initialRequest?.items.length ?? 0));
   const newLine = (productId = "", quantity = ""): Line => ({ key: keyRef.current++, productId, quantity });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);

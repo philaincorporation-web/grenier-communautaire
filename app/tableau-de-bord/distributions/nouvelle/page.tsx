@@ -15,7 +15,12 @@ export const metadata: Metadata = { title: "Nouvelle distribution" };
 /** Fuseau de l'association (Gabon) : la date proposée par défaut est celle du jour sur place. */
 const TIME_ZONE = "Africa/Libreville";
 
-async function Content() {
+type Props = PageProps<"/tableau-de-bord/distributions/nouvelle">;
+
+async function Content({ searchParams }: { searchParams: Props["searchParams"] }) {
+  const sp = await searchParams;
+  const initialBeneficiaryId = typeof sp.beneficiaire === "string" ? sp.beneficiaire : undefined;
+  const initialAidRequestId = typeof sp.demande === "string" ? sp.demande : undefined;
   if (!isDbConfigured) return <DemoNotice />;
   const member = await requireActiveMembership();
   if (!canPrepareDistribution(member.role)) {
@@ -29,10 +34,10 @@ async function Content() {
   }
   const options = await getFormOptions(member.organizationId);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE }).format(new Date());
-  return <DistributionForm options={options} today={today} />;
+  return <DistributionForm options={options} today={today} initialBeneficiaryId={initialBeneficiaryId} initialAidRequestId={initialAidRequestId} />;
 }
 
-export default function NewDistributionPage() {
+export default function NewDistributionPage({ searchParams }: Props) {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <Link href="/tableau-de-bord/distributions" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-brand">
@@ -40,7 +45,7 @@ export default function NewDistributionPage() {
       </Link>
       <PageHeader title="Nouvelle distribution" subtitle="Préparez un brouillon : le stock ne bouge qu'à la validation." />
       <Suspense fallback={<div className="h-[32rem] animate-pulse rounded-xl bg-white" aria-busy="true" />}>
-        <Content />
+        <Content searchParams={searchParams} />
       </Suspense>
     </div>
   );

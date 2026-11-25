@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { EventsMobile } from "@/components/site/EventsMobile";
 import { HeroSlider } from "@/components/site/HeroSlider";
 import { Container, SectionTitle } from "@/components/site/ui";
 import { CtaBand, EventCard } from "@/components/site/sections";
@@ -17,7 +18,11 @@ export default function EventsPage() {
       <section className="py-16 sm:py-20">
         <Container>
           <SectionTitle eyebrow="Agenda" title="Tous les événements" text="Collectes, distributions, ateliers et rencontres : venez nous retrouver." />
-          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+          {/* Petit écran : carte interactive façon « pricing » ; à partir de md : grille de cartes. */}
+          <div className="mx-auto mt-10 max-w-md md:hidden">
+            <EventsMobile items={sorted} />
+          </div>
+          <div className="mt-10 hidden gap-6 md:grid lg:grid-cols-2">
             {sorted.map((e) => (
               <EventCard key={e.slug} e={e} />
             ))}

@@ -144,7 +144,16 @@ export function RequestCard({ row, canAct }: { row: OnlineRow; canAct: boolean }
       )}
 
       {canAct && (
-        <footer className="mt-4 border-t border-line pt-3">
+        <footer className="mt-4 space-y-3 border-t border-line pt-3">
+          {/* Une demande d'aide en ligne se convertit en bénéficiaire + demande d'aide instruite. */}
+          {row.type === "aide" && !row.converted && row.status !== "archived" && (
+            <Link
+              href={`/tableau-de-bord/demandes/nouvelle?en-ligne=${row.id}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
+            >
+              Convertir en demande d&apos;aide
+            </Link>
+          )}
           <StatusActions type={row.type} id={row.id} status={row.status} />
         </footer>
       )}

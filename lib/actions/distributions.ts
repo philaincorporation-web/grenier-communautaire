@@ -12,8 +12,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { withTransaction, type Tx } from "@/db";
+import { and, eq, inArray } from "drizzle-orm";
+import { withTransaction } from "@/db";
 import {
   aidRequests,
   auditLogs,
@@ -36,15 +36,13 @@ import {
   type DistributionInput,
 } from "@/lib/distributions-shared";
 import { requireActiveMembership } from "@/lib/session";
+import { nextReference } from "@/lib/admin/refs";
+import { lockWarehouse } from "@/lib/admin/stock";
 
 const BASE = "/tableau-de-bord/distributions";
 const QTY_RE = /^\d{1,9}(\.\d{1,3})?$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Sérialise les opérations de stock d'un même dépôt jusqu'à la fin de la transaction. */
-async function lockWarehouse(tx: Tx, organizationId: string, warehouseId: string) {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`stock:${organizationId}:${warehouseId}`}))`);
-}
 
 function revalidateAll(id?: string) {
   revalidatePath(BASE);
@@ -114,13 +112,8 @@ export async function createDistribution(input: DistributionInput): Promise<Acti
         if (req.beneficiaryId !== input.beneficiaryId) return { error: { aidRequestId: "Cette demande concerne un autre bénéficiaire." } };
       }
 
-      // Référence DIS-0001, DIS-0002… (verrou : deux créations simultanées n'obtiennent pas le même numéro)
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`distribution-ref:${org}`}))`);
-      const [{ next }] = await tx
-        .select({ next: sql`coalesce(max((substring(${distributions.reference} from '^DIS-([0-9]+)$'))::int), 0) + 1`.mapWith(Number) })
-        .from(distributions)
-        .where(eq(distributions.organizationId, org));
-      const reference = `DIS-${String(next).padStart(4, "0")}`;
+      // Référence DIS-0001, DIS-0002… (numérotation commune, verrouillée)
+      const reference = await nextReference(tx, { organizationId: org, prefix: "DIS", table: distributions, referenceColumn: distributions.reference, organizationColumn: distributions.organizationId });
 
       const [created] = await tx
         .insert(distributions)

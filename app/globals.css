@@ -31,6 +31,9 @@
 body {
   background: #ffffff;
   color: var(--ink);
+  /* Réserve la place d'une barre fixe en bas d'écran quand elle est affichée (--bottom-bar). */
+  padding-bottom: var(--bottom-bar, 0px);
+  transition: padding-bottom 0.3s ease-out;
 }
 
 /* Menu radial : signaux d'attention du bouton flottant (components/site/RadialMenu.tsx). */

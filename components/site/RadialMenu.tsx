@@ -148,7 +148,8 @@ export function RadialMenu({
       <nav
         ref={rootRef}
         aria-label={label}
-        className="fixed bottom-6 right-4 z-50 mb-[env(safe-area-inset-bottom)] size-14 sm:right-6 print:hidden"
+        className="fixed bottom-[calc(1.5rem+var(--bottom-bar,0px))] right-4 z-50 mb-[env(safe-area-inset-bottom)] size-14 transition-[bottom] duration-300 ease-out sm:right-6 print:hidden"
+        // `--bottom-bar` : hauteur d'une barre fixe en bas d'écran (ex. EventsMobile), le bouton se place au-dessus.
         // Le focus quitte le menu (Tab, clic ailleurs) : on le referme.
         onBlur={(e) => {
           if (open && !rootRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false);

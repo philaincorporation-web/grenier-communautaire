@@ -34,6 +34,7 @@ export const mainNav: (NavLink & { children?: NavLink[] })[] = [
   { href: "/evenements", label: "Événements" },
   { href: "/benevolat", label: "Bénévolat" },
   { href: "/actualites", label: "Actualités" },
+  { href: "/inspiration", label: "Inspiration" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -47,6 +48,7 @@ export const publicRoutes = [
   "/benevolat",
   "/evenements",
   "/actualites",
+  "/inspiration",
   "/contact",
   "/faq",
   "/mentions-legales",

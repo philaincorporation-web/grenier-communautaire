@@ -1,6 +1,8 @@
 // Sections réutilisables du site public. Chaque page est un assemblage de ces blocs.
 
+import Image from "next/image";
 import Link from "next/link";
+import { banner } from "@/lib/inspiration-content";
 import {
   CalendarDays,
   Clock,
@@ -302,9 +304,18 @@ export function CtaBand({
   return (
     <section className="py-16">
       <Container>
-        <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(110deg,#1d1f2b_0%,#3a1f2a_55%,#b0124f_100%)] px-6 py-12 text-white sm:px-14 sm:py-14">
+        <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(110deg,#1d1f2b_0%,#3a1f2a_55%,#b0124f_100%)] px-6 py-8 text-white sm:px-14 sm:py-12">
           <div className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full bg-white/5" />
           <div className="pointer-events-none absolute -bottom-24 right-40 size-56 rounded-full bg-white/5" />
+          {/* Bannière « Le Relais des Hommes de Bien » (visuel fourni par l'association). */}
+          <Image
+            src={banner.src}
+            alt={banner.alt}
+            width={banner.width}
+            height={banner.height}
+            sizes="(min-width: 1280px) 1104px, calc(100vw - 80px)"
+            className="relative mb-8 h-auto w-full rounded-2xl shadow-lg ring-1 ring-white/10 sm:mb-10"
+          />
           <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="max-w-lg text-2xl font-extrabold leading-tight sm:text-4xl">{title}</h2>
