@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Inbox, Lock } from "lucide-react";
+import { BellRing, Inbox, Lock } from "lucide-react";
+import { AppSettings } from "@/components/pwa/AppSettings";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { DemoNotice } from "@/components/admin/DemoNotice";
 import {
@@ -103,6 +104,15 @@ async function Content({ searchParams }: { searchParams: Props["searchParams"] }
 
   return (
     <>
+      <details className="group rounded-xl border border-line bg-white">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold">
+          <BellRing className="size-4 text-brand" /> Être alerté des nouvelles demandes sur cet appareil
+          <span className="ml-auto text-xs font-normal text-muted group-open:hidden">Afficher</span>
+        </summary>
+        <div className="border-t border-line p-4">
+          <AppSettings />
+        </div>
+      </details>
       <Tabs current={type} counts={counts} />
       <div className="space-y-5">{body}</div>
     </>

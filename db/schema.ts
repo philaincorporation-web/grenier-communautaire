@@ -458,10 +458,28 @@ export const requesterNotifications = pgTable("requester_notifications", {
   index("requester_notifications_email_idx").on(t.email, t.readAt, t.createdAt),
 ]);
 
+/**
+ * Appareil abonné aux notifications push (PWA). Un compte peut en avoir plusieurs (téléphone,
+ * ordinateur). Les envois ciblent l'e-mail vérifié du compte : demandes du site pour un demandeur,
+ * adhésion de gestion pour l'équipe. Un abonnement refusé par le service push (404/410) est supprimé.
+ */
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: id(),
+  authUserId: text("auth_user_id").notNull(),
+  email: varchar("email", { length: 255 }).notNull(), // toujours en minuscules
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: varchar("user_agent", { length: 300 }),
+  createdAt: createdAt(),
+}, t => [
+  index("push_subscriptions_email_idx").on(t.email),
+]);
+
 export const schema = {
   organizations, users, userAvatars, memberships, donors, productCategories, products, warehouses,
   donations, donationItems, beneficiaries, aidRequests, aidRequestItems,
   stockMovements, stockMovementItems, distributions, distributionItems, auditLogs,
   volunteerApplications, contactMessages, newsletterSubscribers, publicAidRequests,
-  requestEvents, requesterNotifications,
+  requestEvents, requesterNotifications, pushSubscriptions,
 };

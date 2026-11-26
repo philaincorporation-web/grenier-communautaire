@@ -10,11 +10,13 @@
 
 import { createHash, createHmac, randomInt } from "node:crypto";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { and, eq, gte, sql } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { getDb, isDbConfigured, type Db } from "@/db";
 import { contactMessages, newsletterSubscribers, publicAidRequests, volunteerApplications } from "@/db/schema";
 import { getPublicOrganizationId } from "@/lib/public-org";
+import { notifyStaff } from "@/lib/request-events";
 import { aidNeeds, contactSubjects, volunteerRoles } from "@/lib/site-content";
 
 export type FormState = {
@@ -137,6 +139,7 @@ export async function submitVolunteer(_: FormState, data: FormData): Promise<For
       message: field(data, "message") || null,
       ipHash: hash,
     });
+    after(() => notifyStaff(ctx.orgId, "benevoles", "new"));
     return { status: "success", message: "Merci ! Votre candidature a bien été envoyée. Un responsable de relais vous recontactera. Suivez-la et échangez avec l'équipe dans « Mon espace » (connexion avec cette adresse e-mail)." };
   } catch (error) {
     console.error("[public-forms] volunteer", error);
@@ -204,6 +207,7 @@ export async function submitAidRequest(_: FormState, data: FormData): Promise<Fo
           consentAt: new Date(),
           ipHash: hash,
         });
+        after(() => notifyStaff(ctx.orgId, "aide", "new"));
         return {
           status: "success",
           message: `Votre demande a bien été enregistrée. Référence : ${reference}. Conservez-la : elle vous sera demandée pour tout échange. Un membre de l'équipe vous contactera.${field(data, "email") ? " Suivez-la et échangez avec l'équipe dans « Mon espace » (connexion avec cette adresse e-mail)." : " Vous pourrez aussi la suivre dans « Mon espace » en l'ajoutant avec cette référence et votre téléphone."}`,
@@ -249,6 +253,7 @@ export async function submitContact(_: FormState, data: FormData): Promise<FormS
       message: field(data, "message"),
       ipHash: hash,
     });
+    after(() => notifyStaff(ctx.orgId, "messages", "new"));
     return { status: "success", message: "Merci ! Votre message a bien été envoyé. Nous vous répondons rapidement. Retrouvez notre réponse dans « Mon espace » (connexion avec cette adresse e-mail)." };
   } catch (error) {
     console.error("[public-forms] contact", error);

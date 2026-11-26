@@ -14,7 +14,7 @@ import { withTransaction } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { requireActiveMembership } from "@/lib/session";
 import { canManageOnlineRequests, isStatus, isWorkflowType, type SubmissionStatus } from "@/lib/online-requests-shared";
-import { addEvent, addNotification, auditEntity, emailRequester, requestTables, UUID_RE } from "@/lib/request-events";
+import { addEvent, addNotification, auditEntity, notifyRequester, requestTables, UUID_RE } from "@/lib/request-events";
 import { MESSAGE_MAX } from "@/lib/requester-shared";
 
 export type StatusResult = { ok: true } | { ok: false; message: string };
@@ -68,7 +68,7 @@ export async function updateOnlineRequestStatus(type: string, id: string, status
   });
 
   if (!result) return { ok: false, message: "Cette demande est introuvable." };
-  if (result.email) await emailRequester(result.email, type, id, { kind: "status", status: status as SubmissionStatus });
+  if (result.email) await notifyRequester(result.email, type, id, { kind: "status", status: status as SubmissionStatus });
   revalidate();
   return { ok: true };
 }
@@ -115,7 +115,7 @@ export async function replyToOnlineRequest(type: string, id: string, body: strin
   });
 
   if (!result) return { ok: false, message: "Cette demande est introuvable." };
-  if (result.email) await emailRequester(result.email, type, id, { kind: "message" });
+  if (result.email) await notifyRequester(result.email, type, id, { kind: "message" });
   revalidate();
   return { ok: true };
 }

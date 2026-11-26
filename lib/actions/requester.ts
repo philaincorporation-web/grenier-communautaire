@@ -5,12 +5,13 @@
 // le type, l'identifiant de la demande et le texte, tous revalidés ici.
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { and, count, eq, gte, isNull, sql } from "drizzle-orm";
 import { getDb, withTransaction } from "@/db";
 import { publicAidRequests, requestEvents, requesterNotifications } from "@/db/schema";
 import { requireRequester } from "@/lib/session";
 import { isWorkflowType } from "@/lib/online-requests-shared";
-import { addEvent, requestTables, UUID_RE } from "@/lib/request-events";
+import { addEvent, notifyStaff, requestTables, UUID_RE } from "@/lib/request-events";
 import { MESSAGE_MAX, REQUESTER_MESSAGES_PER_HOUR, requestHref } from "@/lib/requester-shared";
 
 export type RequesterResult = { ok: boolean; message: string; href?: string };
@@ -34,20 +35,21 @@ export async function sendRequesterMessage(type: string, id: string, body: strin
 
   const t = requestTables[type];
   try {
-    const ok = await withTransaction(async (tx) => {
+    const orgId = await withTransaction(async (tx) => {
       const [req] = await tx
         .select({ organizationId: t.organizationId })
         .from(t)
         .where(and(eq(t.id, id), eq(sql`lower(${t.email})`, me.email)))
         .limit(1);
-      if (!req) return false;
+      if (!req) return null;
       await addEvent(tx, {
         organizationId: req.organizationId, type, requestId: id, kind: "message", author: "requester",
         authorAuthUserId: me.authUserId, authorName: me.name, body: text,
       });
-      return true;
+      return req.organizationId;
     });
-    if (!ok) return { ok: false, message: "Cette demande est introuvable." };
+    if (!orgId) return { ok: false, message: "Cette demande est introuvable." };
+    after(() => notifyStaff(orgId, type, "message")); // après la réponse : n'attend pas l'envoi
   } catch (e) {
     console.error("[requester] message", e);
     return { ok: false, message: "Votre message n'a pas pu être envoyé. Réessayez." };

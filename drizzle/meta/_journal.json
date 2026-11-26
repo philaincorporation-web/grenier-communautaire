@@ -36,6 +36,13 @@
       "when": 1795711260187,
       "tag": "0004_request_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795717001312,
+      "tag": "0005_push_subscriptions",
+      "breakpoints": true
     }
   ]
 }

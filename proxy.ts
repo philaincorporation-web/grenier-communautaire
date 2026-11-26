@@ -11,6 +11,7 @@ export default isAuthConfigured
   : () => NextResponse.next();
 
 export const config = {
-  // Fichiers publics servis sans session : ressources Next, icônes d'onglet (app/icon.png, app/apple-icon.png), images.
-  matcher: ["/((?!_next/static|_next/image|icon.png|apple-icon.png|favicon.ico|images/).*)"],
+  // Fichiers publics servis sans session : ressources Next, icônes d'onglet (app/icon.png, app/apple-icon.png), images,
+  // et fichiers de l'application installable (manifeste, service worker, page hors connexion, icônes PWA).
+  matcher: ["/((?!_next/static|_next/image|icon.png|apple-icon.png|favicon.ico|images/|icons/|manifest.webmanifest|sw.js|offline.html).*)"],
 };

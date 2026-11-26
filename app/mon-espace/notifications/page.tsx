@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Bell, CircleDot, MessageSquareText } from "lucide-react";
+import { AppSettings } from "@/components/pwa/AppSettings";
 import { MarkAllRead } from "@/components/requester/MarkAllRead";
 import { dateTimeFmt } from "@/components/requester/ui";
 import { isDbConfigured } from "@/db";
@@ -60,6 +61,7 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-extrabold sm:text-3xl">Notifications</h1>
+      <AppSettings />
       <Suspense fallback={<div className="h-48 animate-pulse rounded-xl bg-white" aria-busy="true" />}>
         <NotificationList />
       </Suspense>

@@ -4,6 +4,7 @@
 import { contactMessages, publicAidRequests, requestEvents, requesterNotifications, volunteerApplications } from "@/db/schema";
 import type { Tx } from "@/db";
 import { sendRequesterNotification } from "@/lib/email";
+import { pushToEmails, pushToStaff } from "@/lib/push";
 import type { SubmissionStatus, WorkflowType } from "@/lib/online-requests-shared";
 import { requestHref, requesterStatusLabels } from "@/lib/requester-shared";
 
@@ -66,22 +67,31 @@ export async function addNotification(tx: Tx, p: { organizationId: string; email
   });
 }
 
-/** E-mail envoyé APRÈS la transaction (un échec d'envoi n'annule rien). */
-export async function emailRequester(
+/** E-mail + notification push envoyés APRÈS la transaction (un échec d'envoi n'annule rien). */
+export async function notifyRequester(
   email: string,
   type: WorkflowType,
   requestId: string,
   what: { kind: "message" } | { kind: "status"; status: SubmissionStatus },
 ) {
   const path = requestHref(type, requestId);
-  if (what.kind === "message") {
-    await sendRequesterNotification(email, "Nouvelle réponse à votre demande", "L'équipe du Grenier Communautaire a répondu à votre demande.", path);
-  } else {
-    await sendRequesterNotification(
-      email,
-      "Votre demande a évolué",
-      `Le statut de votre demande est maintenant : « ${requesterStatusLabels[what.status]} ».`,
-      path,
-    );
-  }
+  const [subject, intro] =
+    what.kind === "message"
+      ? ["Nouvelle réponse à votre demande", "L'équipe du Grenier Communautaire a répondu à votre demande."]
+      : ["Votre demande a évolué", `Le statut de votre demande est maintenant : « ${requesterStatusLabels[what.status]} ».`];
+  await Promise.all([
+    sendRequesterNotification(email, subject, intro, path),
+    pushToEmails([email], { title: subject, body: intro, url: path, tag: `${type}:${requestId}` }),
+  ]);
+}
+
+/** Prévient l'équipe de gestion d'un nouveau message de demandeur ou d'une nouvelle demande. */
+export async function notifyStaff(organizationId: string, type: WorkflowType, what: "message" | "new") {
+  const labels: Record<WorkflowType, string> = { aide: "demande d'aide", benevoles: "candidature bénévole", messages: "message de contact" };
+  await pushToStaff(organizationId, {
+    title: what === "message" ? "Nouveau message d'un demandeur" : `Nouvelle ${labels[type]}`,
+    body: what === "message" ? "Un demandeur attend votre réponse dans Demandes en ligne." : "Reçue depuis le site, à traiter dans Demandes en ligne.",
+    url: `/tableau-de-bord/demandes-en-ligne?type=${type}`,
+    tag: `staff:${type}`,
+  });
 }
