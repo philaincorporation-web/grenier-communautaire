@@ -65,7 +65,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
       const { error } = await authCall(authClient.signIn.email({ email: values.email, password: values.password }));
-      if (error?.code === "EMAIL_NOT_VERIFIED" || error?.status === 403) {
+      // Un 403 peut aussi être « INVALID_ORIGIN » : seul le code précis mène à la vérification.
+      if (error?.code === "EMAIL_NOT_VERIFIED" || (error?.status === 403 && !error.code)) {
         setStep("code");
         const sent = await authCall(authClient.emailOtp.sendVerificationOtp({ email: values.email, type: "email-verification" }));
         setInfo(

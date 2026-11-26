@@ -57,11 +57,24 @@ export function errorMessage(error: AuthErr) {
       return "Ce code a expiré. Demandez-en un nouveau.";
     case "TOO_MANY_ATTEMPTS":
       return "Trop de tentatives. Demandez un nouveau code.";
-    default:
-      // Pas de message anglais brut du serveur : un message français générique.
-      return error?.status === 429
-        ? "Trop de tentatives. Réessayez dans quelques minutes."
-        : "Une erreur est survenue. Réessayez.";
+    case "INVALID_ORIGIN":
+      return "Adresse du site non autorisée par le service de connexion. Ouvrez le site via son adresse officielle (ou http://localhost:3000 en développement).";
+    case "EMAIL_NOT_VERIFIED":
+      return "Votre e-mail n'est pas encore vérifié.";
+    case "USER_NOT_FOUND":
+      return "Aucun compte n'existe avec cet e-mail.";
+    case "CREDENTIAL_ACCOUNT_NOT_FOUND":
+      return "Ce compte n'a pas de mot de passe. Utilisez « Mot de passe oublié ? » pour en définir un.";
+    case "BANNED_USER":
+      return "Ce compte est suspendu. Contactez l'association.";
+    default: {
+      if (error?.status === 429) return "Trop de tentatives. Réessayez dans quelques minutes.";
+      // Pas de message anglais brut du serveur : un message français générique, avec la
+      // référence technique pour pouvoir diagnostiquer.
+      if (error) console.error("Erreur d'authentification", error);
+      const ref = [error?.code, error?.status].filter(Boolean).join(" / ");
+      return `Une erreur est survenue. Réessayez.${ref ? ` (réf. ${ref})` : ""}`;
+    }
   }
 }
 
