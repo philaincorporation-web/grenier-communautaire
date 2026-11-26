@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Caveat } from "next/font/google";
+import { PushToast } from "@/components/pwa/PushToast";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import "./globals.css";
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col font-sans">
         {children}
         <ServiceWorkerRegister />
+        <PushToast />
       </body>
     </html>
   );

@@ -43,20 +43,38 @@ self.addEventListener("push", (event) => {
     data = { body: event.data ? event.data.text() : "" };
   }
   const title = data.title || "Grenier Communautaire";
+  const url = data.url || "/demarrer";
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || "",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/badge-96.png",
-      tag: data.tag, // une notification par demande : la plus récente remplace la précédente
-      renotify: Boolean(data.tag),
-      data: { url: data.url || "/demarrer" },
-    }),
+    Promise.all([
+      // Notification du système : non silencieuse (son et vibration selon les réglages de l'appareil),
+      // reste affichée jusqu'à une action sur ordinateur, avec un bouton « Consulter ».
+      self.registration.showNotification(title, {
+        body: data.body || "",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/badge-96.png",
+        tag: data.tag, // une notification par demande : la plus récente remplace la précédente
+        renotify: Boolean(data.tag), // … mais sonne et vibre de nouveau
+        silent: false,
+        requireInteraction: true,
+        vibrate: [200, 100, 200],
+        timestamp: Date.now(),
+        actions: [
+          { action: "open", title: "Consulter" },
+          { action: "close", title: "Fermer" },
+        ],
+        data: { url },
+      }),
+      // Si le site est ouvert, il affiche aussi sa propre bulle avec un son (components/pwa/PushToast.tsx).
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+        for (const w of windows) w.postMessage({ type: "push", title, body: data.body || "", url });
+      }),
+    ]),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  if (event.action === "close") return;
   // Seules les adresses du site sont ouvertes (jamais une URL externe venue du message).
   const target = new URL(event.notification.data?.url || "/demarrer", self.location.origin);
   if (target.origin !== self.location.origin) return;
