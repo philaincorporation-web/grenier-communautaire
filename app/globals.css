@@ -80,3 +80,35 @@ body {
 @media (prefers-reduced-motion: reduce) {
   [class*="animate-[toast-"] { animation: none !important; }
 }
+
+/* Écran de chargement (components/loading/BrandLoader.tsx) */
+@keyframes brand-heart-beat {
+  0%, 60%, 100% { transform: scale(1); }
+  15% { transform: scale(1.18); }
+  30% { transform: scale(0.96); }
+  45% { transform: scale(1.1); }
+}
+@keyframes brand-house-draw {
+  0% { stroke-dashoffset: 1; }
+  45%, 75% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -1; }
+}
+@keyframes brand-halo {
+  0% { transform: scale(1); opacity: 0.45; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+.brand-loader-heart { transform-box: fill-box; transform-origin: center; animation: brand-heart-beat 1.4s ease-in-out infinite; }
+.brand-loader-house { stroke-dasharray: 1; animation: brand-house-draw 2.4s ease-in-out infinite; }
+.brand-loader-halo { animation: brand-halo 1.4s ease-out infinite; }
+
+/* Squelettes : reflet qui glisse (components/loading/Skeleton.tsx) */
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-heart, .brand-loader-house, .brand-loader-halo { animation: none; }
+  .brand-loader-house { stroke-dasharray: none; }
+  .brand-loader-halo { display: none; }
+  .skeleton-shimmer::after { animation: none !important; }
+}

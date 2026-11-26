@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ArrowLeft, CircleDot, FilePlus2 } from "lucide-react";
+import { RequestDetailSkeleton } from "@/components/loading/Skeleton";
 import { RequesterThread } from "@/components/requester/RequesterThread";
 import { RequesterStatusBadge, dateFmt, dateTimeFmt } from "@/components/requester/ui";
 import { isDbConfigured } from "@/db";
@@ -107,7 +108,7 @@ export default function RequestDetailPage({ params }: Props) {
       <Link href="/mon-espace" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-brand">
         <ArrowLeft className="size-4" /> Mes demandes
       </Link>
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-white" aria-busy="true" />}>
+      <Suspense fallback={<RequestDetailSkeleton />}>
         <Detail params={params} />
       </Suspense>
     </div>

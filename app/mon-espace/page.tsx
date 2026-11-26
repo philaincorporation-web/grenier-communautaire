@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ChevronRight, HandHeart, Inbox, Mail, Users } from "lucide-react";
+import { RequestListSkeleton } from "@/components/loading/Skeleton";
 import { ClaimForm } from "@/components/requester/ClaimForm";
 import { RequesterStatusBadge, dateFmt } from "@/components/requester/ui";
 import { isDbConfigured } from "@/db";
@@ -78,7 +79,7 @@ export default function MyRequestsPage() {
 
       <section aria-labelledby="historique" className="space-y-3">
         <h2 id="historique" className="text-lg font-bold">Historique</h2>
-        <Suspense fallback={<div className="h-48 animate-pulse rounded-xl bg-white" aria-busy="true" />}>
+        <Suspense fallback={<RequestListSkeleton />}>
           <RequestList />
         </Suspense>
       </section>

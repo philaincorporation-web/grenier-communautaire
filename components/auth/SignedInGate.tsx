@@ -32,7 +32,7 @@ export async function SignedInGate({ children }: { children: React.ReactNode }) 
       </div>
 
       <Link
-        href="/tableau-de-bord"
+        href="/demarrer"
         className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
       >
         Accéder à l&apos;espace membre <ArrowRight className="size-4" />
