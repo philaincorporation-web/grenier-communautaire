@@ -22,6 +22,13 @@
       "when": 1795619999153,
       "tag": "0002_super_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795699451798,
+      "tag": "0003_user_avatars",
+      "breakpoints": true
     }
   ]
 }

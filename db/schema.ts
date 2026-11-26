@@ -49,6 +49,21 @@ export const users = pgTable("users", {
   updatedAt: updatedAt(),
 });
 
+/**
+ * Photo de profil d'un compte Neon Auth (une par compte). Clé = identifiant Neon Auth, pour que
+ * tout utilisateur connecté puisse en avoir une, rattaché ou non à une organisation.
+ * Image déjà réduite côté navigateur (256 × 256), stockée en base64 ; servie par /api/avatar/[id].
+ * Table à part : la lecture courante de `users` ne charge jamais l'image.
+ */
+export const userAvatars = pgTable("user_avatars", {
+  authUserId: text("auth_user_id").primaryKey(),
+  mimeType: varchar("mime_type", { length: 40 }).notNull(),
+  data: text("data").notNull(),
+  updatedAt: updatedAt(),
+}, t => [
+  check("user_avatars_mime_ck", sql`${t.mimeType} in ('image/jpeg', 'image/png', 'image/webp')`),
+]);
+
 export const memberships = pgTable("memberships", {
   id: id(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
@@ -396,7 +411,7 @@ export const publicAidRequests = pgTable("public_aid_requests", {
 ]);
 
 export const schema = {
-  organizations, users, memberships, donors, productCategories, products, warehouses,
+  organizations, users, userAvatars, memberships, donors, productCategories, products, warehouses,
   donations, donationItems, beneficiaries, aidRequests, aidRequestItems,
   stockMovements, stockMovementItems, distributions, distributionItems, auditLogs,
   volunteerApplications, contactMessages, newsletterSubscribers, publicAidRequests,
