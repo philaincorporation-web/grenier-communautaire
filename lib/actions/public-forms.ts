@@ -137,7 +137,7 @@ export async function submitVolunteer(_: FormState, data: FormData): Promise<For
       message: field(data, "message") || null,
       ipHash: hash,
     });
-    return { status: "success", message: "Merci ! Votre candidature a bien été envoyée. Un responsable de relais vous recontactera." };
+    return { status: "success", message: "Merci ! Votre candidature a bien été envoyée. Un responsable de relais vous recontactera. Suivez-la et échangez avec l'équipe dans « Mon espace » (connexion avec cette adresse e-mail)." };
   } catch (error) {
     console.error("[public-forms] volunteer", error);
     return fail(UNAVAILABLE, { values });
@@ -206,7 +206,7 @@ export async function submitAidRequest(_: FormState, data: FormData): Promise<Fo
         });
         return {
           status: "success",
-          message: `Votre demande a bien été enregistrée. Référence : ${reference}. Conservez-la : elle vous sera demandée pour tout échange. Un membre de l'équipe vous contactera.`,
+          message: `Votre demande a bien été enregistrée. Référence : ${reference}. Conservez-la : elle vous sera demandée pour tout échange. Un membre de l'équipe vous contactera.${field(data, "email") ? " Suivez-la et échangez avec l'équipe dans « Mon espace » (connexion avec cette adresse e-mail)." : " Vous pourrez aussi la suivre dans « Mon espace » en l'ajoutant avec cette référence et votre téléphone."}`,
         };
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;
@@ -249,7 +249,7 @@ export async function submitContact(_: FormState, data: FormData): Promise<FormS
       message: field(data, "message"),
       ipHash: hash,
     });
-    return { status: "success", message: "Merci ! Votre message a bien été envoyé. Nous vous répondons rapidement." };
+    return { status: "success", message: "Merci ! Votre message a bien été envoyé. Nous vous répondons rapidement. Retrouvez notre réponse dans « Mon espace » (connexion avec cette adresse e-mail)." };
   } catch (error) {
     console.error("[public-forms] contact", error);
     return fail(UNAVAILABLE, { values });

@@ -31,6 +31,29 @@ async function requireVerifiedSession() {
   return authUser;
 }
 
+export type Requester = { authUserId: string; email: string; name: string };
+
+/**
+ * Demandeur connecté (« Mon espace ») : toute personne avec une session et un e-mail vérifié.
+ * L'e-mail vérifié est la clé qui relie le compte à ses demandes du site public.
+ */
+export async function requireRequester(): Promise<Requester> {
+  const authUser = await requireVerifiedSession();
+  return { authUserId: authUser.id, email: authUser.email.toLowerCase(), name: authUser.name || authUser.email };
+}
+
+/** Le compte connecté est-il membre actif d'une organisation (accès au tableau de bord) ? */
+export async function hasActiveMembership(email: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ id: memberships.id })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
+    .where(and(eq(users.email, email.toLowerCase()), eq(users.isActive, true), eq(memberships.isActive, true), eq(organizations.isActive, true)))
+    .limit(1);
+  return Boolean(row);
+}
+
 export type SuperAdmin = { userId: string; userName: string; email: string };
 
 /**
@@ -85,6 +108,14 @@ export async function requireActiveMembership(): Promise<ActiveMembership> {
     .limit(1);
 
   if (!row) {
+    // Un demandeur (compte sans adhésion) n'a pas de tableau de bord : il suit ses demandes
+    // dans « Mon espace ». Le super administrateur garde le message explicite.
+    const [admin] = await getDb()
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.email, authUser.email.toLowerCase()), eq(users.isActive, true), eq(users.isSuperAdmin, true)))
+      .limit(1);
+    if (!admin) redirect("/mon-espace");
     throw new AuthError(
       `Le compte ${authUser.email} n'est rattaché à aucune organisation active. Un administrateur doit vous donner accès (npm run db:grant -- <email>).`,
     );

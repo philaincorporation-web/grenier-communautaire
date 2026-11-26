@@ -69,6 +69,9 @@ export function errorMessage(error: AuthErr) {
       return "Ce compte est suspendu. Contactez l'association.";
     default: {
       if (error?.status === 429) return "Trop de tentatives. Réessayez dans quelques minutes.";
+      // 503 : la route /api/auth répond ainsi quand NEON_AUTH_BASE_URL / NEON_AUTH_COOKIE_SECRET
+      // manquent sur le serveur (le client Neon Auth le traduit en « feature_not_supported »).
+      if (error?.status === 503) return "La connexion n'est pas encore disponible sur ce site (service d'authentification non configuré).";
       // Pas de message anglais brut du serveur : un message français générique, avec la
       // référence technique pour pouvoir diagnostiquer.
       if (error) console.error("Erreur d'authentification", error);

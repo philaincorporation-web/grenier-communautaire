@@ -71,6 +71,20 @@ export type OnlineRow = {
   message?: string;
   /** Demande d'aide déjà convertie en aid_request. */
   converted?: boolean;
+  /** Historique (messages et statuts), du plus ancien au plus récent. */
+  thread: ThreadEvent[];
+  /** Le dernier message vient du demandeur : l'équipe doit répondre. */
+  awaitingReply: boolean;
+};
+
+export type ThreadEvent = {
+  id: string;
+  kind: "message" | "status";
+  author: "staff" | "requester";
+  authorName?: string;
+  body?: string;
+  status?: SubmissionStatus;
+  createdAt: string; // ISO
 };
 
 export type SubscriberRow = { id: string; email: string; subscribedAt: string; active: boolean };

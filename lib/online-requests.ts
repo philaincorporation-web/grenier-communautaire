@@ -2,11 +2,53 @@
 // Chaque requête est filtrée par organization_id, résolu côté serveur par
 // requireActiveMembership() — jamais à partir d'une valeur fournie par le navigateur.
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, type Db } from "@/db";
-import { contactMessages, newsletterSubscribers, publicAidRequests, volunteerApplications } from "@/db/schema";
+import { contactMessages, newsletterSubscribers, publicAidRequests, requestEvents, volunteerApplications } from "@/db/schema";
 import { contactSubjects, volunteerRoles } from "@/lib/site-content";
-import type { OnlineRow, SubmissionStatus, SubscriberRow, WorkflowType } from "@/lib/online-requests-shared";
+import type { OnlineRow, SubmissionStatus, SubscriberRow, ThreadEvent, WorkflowType } from "@/lib/online-requests-shared";
+
+/** Demandes dont le dernier message vient du demandeur (réponse attendue), par type. */
+async function getAwaitingCounts(organizationId: string, db: Db): Promise<Record<WorkflowType, number>> {
+  // Dernier message de chaque demande, puis on garde ceux écrits par le demandeur.
+  const last = db
+    .selectDistinctOn([requestEvents.requestType, requestEvents.requestId], { type: requestEvents.requestType, author: requestEvents.author })
+    .from(requestEvents)
+    .where(and(eq(requestEvents.organizationId, organizationId), eq(requestEvents.kind, "message")))
+    .orderBy(requestEvents.requestType, requestEvents.requestId, desc(requestEvents.createdAt))
+    .as("last");
+  const rows = await db.select({ type: last.type, n: count }).from(last).where(eq(last.author, "requester")).groupBy(last.type);
+  const out: Record<WorkflowType, number> = { aide: 0, benevoles: 0, messages: 0 };
+  for (const r of rows) if (r.type in out) out[r.type as WorkflowType] = r.n;
+  return out;
+}
+
+/** Ajoute à chaque ligne son historique et l'indicateur « réponse attendue ». */
+async function withThreads(type: WorkflowType, rows: Omit<OnlineRow, "thread" | "awaitingReply">[], db: Db): Promise<OnlineRow[]> {
+  if (!rows.length) return [];
+  const events = await db
+    .select({
+      id: requestEvents.id, requestId: requestEvents.requestId, kind: requestEvents.kind, author: requestEvents.author,
+      authorName: requestEvents.authorName, body: requestEvents.body, status: requestEvents.status, createdAt: requestEvents.createdAt,
+    })
+    .from(requestEvents)
+    .where(and(eq(requestEvents.requestType, type), inArray(requestEvents.requestId, rows.map((r) => r.id))))
+    .orderBy(asc(requestEvents.createdAt));
+  const byRequest = new Map<string, ThreadEvent[]>();
+  for (const e of events) {
+    const list = byRequest.get(e.requestId) ?? [];
+    list.push({
+      id: e.id, kind: e.kind as ThreadEvent["kind"], author: e.author as ThreadEvent["author"],
+      authorName: e.authorName ?? undefined, body: e.body ?? undefined, status: e.status ?? undefined, createdAt: iso(e.createdAt),
+    });
+    byRequest.set(e.requestId, list);
+  }
+  return rows.map((r) => {
+    const thread = byRequest.get(r.id) ?? [];
+    const lastMessage = thread.findLast((e) => e.kind === "message");
+    return { ...r, thread, awaitingReply: lastMessage?.author === "requester" };
+  });
+}
 
 export const PAGE_SIZE = 15;
 
@@ -15,14 +57,15 @@ const count = sql`count(*)`.mapWith(Number);
 
 export type NewCounts = { aide: number; benevoles: number; messages: number };
 
-/** Nombre de demandes « nouvelles » par type (pastilles de l'interface). */
+/** Demandes à traiter par type (pastilles) : nouvelles + en attente d'une réponse de l'équipe. */
 export async function getNewCounts(organizationId: string, db: Db = getDb()): Promise<NewCounts> {
-  const [[aide], [benevoles], [messages]] = await Promise.all([
+  const [[aide], [benevoles], [messages], awaiting] = await Promise.all([
     db.select({ n: count }).from(publicAidRequests).where(and(eq(publicAidRequests.organizationId, organizationId), eq(publicAidRequests.status, "new"))),
     db.select({ n: count }).from(volunteerApplications).where(and(eq(volunteerApplications.organizationId, organizationId), eq(volunteerApplications.status, "new"))),
     db.select({ n: count }).from(contactMessages).where(and(eq(contactMessages.organizationId, organizationId), eq(contactMessages.status, "new"))),
+    getAwaitingCounts(organizationId, db),
   ]);
-  return { aide: aide.n, benevoles: benevoles.n, messages: messages.n };
+  return { aide: aide.n + awaiting.aide, benevoles: benevoles.n + awaiting.benevoles, messages: messages.n + awaiting.messages };
 }
 
 export type Page<T> = { rows: T[]; total: number };
@@ -49,7 +92,7 @@ export async function listOnlineRequests(
     ]);
     return {
       total: total.n,
-      rows: rows.map((r) => ({
+      rows: await withThreads(type, rows.map((r) => ({
         id: r.id,
         type,
         createdAt: iso(r.createdAt),
@@ -65,7 +108,7 @@ export async function listOnlineRequests(
           ...(clean(r.address) ? [{ label: "Adresse", value: r.address! }] : []),
         ],
         message: clean(r.message),
-      })),
+      })), db),
     };
   }
 
@@ -78,7 +121,7 @@ export async function listOnlineRequests(
     ]);
     return {
       total: total.n,
-      rows: rows.map((r) => ({
+      rows: await withThreads(type, rows.map((r) => ({
         id: r.id,
         type,
         createdAt: iso(r.createdAt),
@@ -91,7 +134,7 @@ export async function listOnlineRequests(
           ...(clean(r.area) ? [{ label: "Quartier", value: r.area! }] : []),
         ],
         message: clean(r.message),
-      })),
+      })), db),
     };
   }
 
@@ -103,7 +146,7 @@ export async function listOnlineRequests(
   ]);
   return {
     total: total.n,
-    rows: rows.map((r) => ({
+    rows: await withThreads(type, rows.map((r) => ({
       id: r.id,
       type,
       createdAt: iso(r.createdAt),
@@ -112,7 +155,7 @@ export async function listOnlineRequests(
       email: r.email,
       fields: [{ label: "Objet", value: subjectLabel(r.subject) }],
       message: r.message,
-    })),
+    })), db),
   };
 }
 

@@ -410,9 +410,58 @@ export const publicAidRequests = pgTable("public_aid_requests", {
   index("public_aid_requests_ip_idx").on(t.ipHash, t.createdAt),
 ]);
 
+/**
+ * Historique d'une demande du site public (aide, bénévolat, contact) : messages échangés entre
+ * l'équipe et le demandeur, et changements de statut. Toute ligne est horodatée et jamais modifiée :
+ * c'est la traçabilité affichée au demandeur dans « Mon espace » et à l'équipe dans le tableau de bord.
+ * `request_type` + `request_id` désignent la demande (pas de FK : trois tables possibles).
+ */
+export const requestEvents = pgTable("request_events", {
+  id: id(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  requestType: varchar("request_type", { length: 20 }).notNull(),
+  requestId: uuid("request_id").notNull(),
+  kind: varchar("kind", { length: 20 }).notNull(),
+  author: varchar("author", { length: 20 }).notNull(),
+  /** Membre de l'équipe auteur (users.id), si author = 'staff'. */
+  authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
+  /** Compte Neon Auth du demandeur, si author = 'requester'. */
+  authorAuthUserId: text("author_auth_user_id"),
+  /** Nom affiché à l'équipe ; le demandeur voit toujours « L'équipe du Grenier Communautaire ». */
+  authorName: varchar("author_name", { length: 180 }),
+  body: text("body"),
+  status: submissionStatus("status"),
+  createdAt: createdAt(),
+}, t => [
+  check("request_events_type_ck", sql`${t.requestType} in ('aide', 'benevoles', 'messages')`),
+  check("request_events_kind_ck", sql`${t.kind} in ('message', 'status')`),
+  check("request_events_author_ck", sql`${t.author} in ('staff', 'requester')`),
+  check("request_events_content_ck", sql`(${t.kind} = 'message' and ${t.body} is not null) or (${t.kind} = 'status' and ${t.status} is not null)`),
+  index("request_events_request_idx").on(t.requestType, t.requestId, t.createdAt),
+  index("request_events_requester_idx").on(t.authorAuthUserId, t.createdAt),
+]);
+
+/**
+ * Notification adressée à un demandeur (réponse de l'équipe ou changement de statut).
+ * Adressée par e-mail (en minuscules) : c'est l'e-mail vérifié du compte qui relie les demandes.
+ */
+export const requesterNotifications = pgTable("requester_notifications", {
+  id: id(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 255 }).notNull(),
+  eventId: uuid("event_id").notNull().references(() => requestEvents.id, { onDelete: "cascade" }),
+  requestType: varchar("request_type", { length: 20 }).notNull(),
+  requestId: uuid("request_id").notNull(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: createdAt(),
+}, t => [
+  index("requester_notifications_email_idx").on(t.email, t.readAt, t.createdAt),
+]);
+
 export const schema = {
   organizations, users, userAvatars, memberships, donors, productCategories, products, warehouses,
   donations, donationItems, beneficiaries, aidRequests, aidRequestItems,
   stockMovements, stockMovementItems, distributions, distributionItems, auditLogs,
   volunteerApplications, contactMessages, newsletterSubscribers, publicAidRequests,
+  requestEvents, requesterNotifications,
 };

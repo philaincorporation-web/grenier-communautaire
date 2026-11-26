@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Mail, MapPin, Phone } from "lucide-react";
+import { ChevronLeft, ChevronRight, Mail, MapPin, MessagesSquare, Phone } from "lucide-react";
+import { StaffReply } from "@/components/admin/StaffReply";
 import { StatusActions } from "@/components/admin/StatusActions";
 import {
   requestTabs,
@@ -14,6 +15,7 @@ import {
 
 const BASE = "/tableau-de-bord/demandes-en-ligne";
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const dateTimeFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
 
 export function demandesHref(p: { type: RequestType; statut?: SubmissionStatus; page?: number }) {
   const q = new URLSearchParams({ type: p.type });
@@ -100,6 +102,9 @@ export function RequestCard({ row, canAct }: { row: OnlineRow; canAct: boolean }
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {row.awaitingReply && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Réponse attendue</span>
+          )}
           {row.converted && (
             <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">Convertie en demande</span>
           )}
@@ -143,8 +148,37 @@ export function RequestCard({ row, canAct }: { row: OnlineRow; canAct: boolean }
         <p className="mt-3 whitespace-pre-wrap break-words rounded-lg bg-surface px-3.5 py-3 text-sm text-ink/80">{row.message}</p>
       )}
 
+      {row.thread.length > 0 && (
+        <details className="group mt-3 rounded-lg border border-line" open={row.awaitingReply}>
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-sm font-semibold">
+            <MessagesSquare className="size-4 text-brand" />
+            Historique et échanges ({row.thread.filter((e) => e.kind === "message").length} message
+            {row.thread.filter((e) => e.kind === "message").length > 1 ? "s" : ""})
+            <ChevronRight className="ml-auto size-4 text-muted transition group-open:rotate-90" />
+          </summary>
+          <ol className="space-y-2.5 border-t border-line px-3.5 py-3">
+            {row.thread.map((e) =>
+              e.kind === "message" ? (
+                <li key={e.id} className={`rounded-lg px-3 py-2 text-sm ${e.author === "requester" ? "bg-surface" : "bg-brand-soft/50"}`}>
+                  <p className="text-xs font-semibold">
+                    {e.author === "requester" ? "Demandeur" : e.authorName ?? "Équipe"}
+                    <span className="font-normal text-muted"> · {dateTimeFmt.format(new Date(e.createdAt))}</span>
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap break-words">{e.body}</p>
+                </li>
+              ) : (
+                <li key={e.id} className="text-xs text-muted">
+                  Statut « {statusLabels[e.status!]} » · {e.authorName ?? "Équipe"} · {dateTimeFmt.format(new Date(e.createdAt))}
+                </li>
+              ),
+            )}
+          </ol>
+        </details>
+      )}
+
       {canAct && (
         <footer className="mt-4 space-y-3 border-t border-line pt-3">
+          <StaffReply type={row.type} id={row.id} hasEmail={Boolean(row.email)} />
           {/* Une demande d'aide en ligne se convertit en bénéficiaire + demande d'aide instruite. */}
           {row.type === "aide" && !row.converted && row.status !== "archived" && (
             <Link

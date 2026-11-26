@@ -1,28 +1,30 @@
 "use server";
 
-// Changement de statut d'une demande en ligne (aide, bénévolat, message).
+// Traitement des demandes en ligne (aide, bénévolat, message) par l'équipe : changement de
+// statut et réponse au demandeur.
 //
 // Règles : session + adhésion active obligatoires, rôle de gestion requis, filtrage par
-// organization_id résolu côté serveur. Le changement est atomique (verrou de ligne), idempotent
-// (rejouer le même statut ne fait rien) et tracé dans audit_logs.
+// organization_id résolu côté serveur. Chaque opération est atomique (verrou de ligne), tracée
+// dans audit_logs et dans l'historique de la demande (request_events) ; le demandeur est notifié
+// dans son espace et par e-mail (après la transaction).
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { withTransaction } from "@/db";
-import { auditLogs, contactMessages, publicAidRequests, volunteerApplications } from "@/db/schema";
+import { auditLogs } from "@/db/schema";
 import { requireActiveMembership } from "@/lib/session";
-import { canManageOnlineRequests, isStatus, isWorkflowType } from "@/lib/online-requests-shared";
+import { canManageOnlineRequests, isStatus, isWorkflowType, type SubmissionStatus } from "@/lib/online-requests-shared";
+import { addEvent, addNotification, auditEntity, emailRequester, requestTables, UUID_RE } from "@/lib/request-events";
+import { MESSAGE_MAX } from "@/lib/requester-shared";
 
 export type StatusResult = { ok: true } | { ok: false; message: string };
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DENIED = { ok: false, message: "Vous n'avez pas les droits pour traiter ces demandes." } as const;
 
-// Les trois tables ont les mêmes colonnes id / organizationId / status / processedAt.
-const tables = {
-  aide: { table: publicAidRequests, entity: "public_aid_request" },
-  benevoles: { table: volunteerApplications as unknown as typeof publicAidRequests, entity: "volunteer_application" },
-  messages: { table: contactMessages as unknown as typeof publicAidRequests, entity: "contact_message" },
-} as const;
+function revalidate() {
+  revalidatePath("/tableau-de-bord/demandes-en-ligne");
+  revalidatePath("/mon-espace", "layout");
+}
 
 export async function updateOnlineRequestStatus(type: string, id: string, status: string): Promise<StatusResult> {
   if (!isWorkflowType(type) || !isStatus(status) || !UUID_RE.test(id)) {
@@ -30,21 +32,19 @@ export async function updateOnlineRequestStatus(type: string, id: string, status
   }
 
   const member = await requireActiveMembership();
-  if (!canManageOnlineRequests(member.role)) {
-    return { ok: false, message: "Vous n'avez pas les droits pour traiter ces demandes." };
-  }
+  if (!canManageOnlineRequests(member.role)) return DENIED;
 
-  const { table: t, entity } = tables[type];
+  const t = requestTables[type];
   const done = status === "processed" || status === "archived";
 
-  const found = await withTransaction(async (tx) => {
+  const result = await withTransaction(async (tx) => {
     const [current] = await tx
-      .select({ status: t.status })
+      .select({ status: t.status, email: t.email })
       .from(t)
       .where(and(eq(t.id, id), eq(t.organizationId, member.organizationId)))
       .for("update");
-    if (!current) return false;
-    if (current.status === status) return true; // déjà dans cet état : rien à faire
+    if (!current) return null;
+    if (current.status === status) return { email: null }; // déjà dans cet état : rien à faire
 
     await tx
       .update(t)
@@ -54,15 +54,68 @@ export async function updateOnlineRequestStatus(type: string, id: string, status
       organizationId: member.organizationId,
       actorUserId: member.userId,
       action: "online_request.status_changed",
-      entityType: entity,
+      entityType: auditEntity[type],
       entityId: id,
       beforeData: { status: current.status },
       afterData: { status },
     });
-    return true;
+    const eventId = await addEvent(tx, {
+      organizationId: member.organizationId, type, requestId: id, kind: "status", author: "staff",
+      authorUserId: member.userId, authorName: member.userName, status,
+    });
+    if (current.email) await addNotification(tx, { organizationId: member.organizationId, email: current.email, eventId, type, requestId: id });
+    return { email: current.email };
   });
 
-  if (!found) return { ok: false, message: "Cette demande est introuvable." };
-  revalidatePath("/tableau-de-bord/demandes-en-ligne");
+  if (!result) return { ok: false, message: "Cette demande est introuvable." };
+  if (result.email) await emailRequester(result.email, type, id, { kind: "status", status: status as SubmissionStatus });
+  revalidate();
+  return { ok: true };
+}
+
+/**
+ * Réponse de l'équipe au demandeur. Répondre à une nouvelle demande la passe « En cours ».
+ * Sans e-mail sur la demande (demande d'aide déposée avec un téléphone seulement), la réponse
+ * reste visible dans l'historique et le demandeur la verra s'il rattache la demande à son compte.
+ */
+export async function replyToOnlineRequest(type: string, id: string, body: string): Promise<StatusResult> {
+  const text = typeof body === "string" ? body.trim() : "";
+  if (!isWorkflowType(type) || !UUID_RE.test(id)) return { ok: false, message: "Demande invalide." };
+  if (!text) return { ok: false, message: "Le message est vide." };
+  if (text.length > MESSAGE_MAX) return { ok: false, message: `Le message est trop long (${MESSAGE_MAX} caractères maximum).` };
+
+  const member = await requireActiveMembership();
+  if (!canManageOnlineRequests(member.role)) return DENIED;
+  const t = requestTables[type];
+
+  const result = await withTransaction(async (tx) => {
+    const [current] = await tx
+      .select({ status: t.status, email: t.email })
+      .from(t)
+      .where(and(eq(t.id, id), eq(t.organizationId, member.organizationId)))
+      .for("update");
+    if (!current) return null;
+
+    const author = { organizationId: member.organizationId, type, requestId: id, author: "staff" as const, authorUserId: member.userId, authorName: member.userName };
+    if (current.status === "new") {
+      await tx.update(t).set({ status: "in_progress", processedAt: null }).where(and(eq(t.id, id), eq(t.organizationId, member.organizationId)));
+      await addEvent(tx, { ...author, kind: "status", status: "in_progress" });
+    }
+    const eventId = await addEvent(tx, { ...author, kind: "message", body: text });
+    await tx.insert(auditLogs).values({
+      organizationId: member.organizationId,
+      actorUserId: member.userId,
+      action: "online_request.replied",
+      entityType: auditEntity[type],
+      entityId: id,
+      afterData: { eventId, length: text.length },
+    });
+    if (current.email) await addNotification(tx, { organizationId: member.organizationId, email: current.email, eventId, type, requestId: id });
+    return { email: current.email };
+  });
+
+  if (!result) return { ok: false, message: "Cette demande est introuvable." };
+  if (result.email) await emailRequester(result.email, type, id, { kind: "message" });
+  revalidate();
   return { ok: true };
 }
